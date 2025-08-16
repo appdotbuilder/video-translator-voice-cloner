@@ -1,13 +1,40 @@
-import { type Video, type GetVideosQuery } from '../schema';
+import { db } from '../db';
+import { videosTable } from '../db/schema';
+import { type Video, getVideosQuerySchema } from '../schema';
+import { eq, desc, and, SQL } from 'drizzle-orm';
 
-export async function getVideos(query?: GetVideosQuery): Promise<Video[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching videos from the database with optional filtering.
-    // It should:
-    // 1. Apply status filter if provided
-    // 2. Apply pagination (limit/offset)
-    // 3. Return array of video records
-    // 4. Potentially include related data (translation jobs, final outputs)
+export const getVideos = async (input: any = {}): Promise<Video[]> => {
+  try {
+    // Parse input with Zod to apply defaults
+    const query = getVideosQuerySchema.parse(input);
+
+    // Build conditions array for filtering
+    const conditions: SQL<unknown>[] = [];
+
+    // Apply status filter if provided
+    if (query.status) {
+      conditions.push(eq(videosTable.upload_status, query.status));
+    }
+
+    // Build and execute the query in one chain
+    const baseQuery = db.select().from(videosTable);
     
-    return Promise.resolve([]);
-}
+    const results = await (conditions.length > 0
+      ? baseQuery
+          .where(conditions.length === 1 ? conditions[0] : and(...conditions))
+          .orderBy(desc(videosTable.created_at))
+          .limit(query.limit)
+          .offset(query.offset)
+      : baseQuery
+          .orderBy(desc(videosTable.created_at))
+          .limit(query.limit)
+          .offset(query.offset)
+    ).execute();
+
+    // Return the results (no numeric conversion needed as all fields are already proper types)
+    return results;
+  } catch (error) {
+    console.error('Get videos failed:', error);
+    throw error;
+  }
+};

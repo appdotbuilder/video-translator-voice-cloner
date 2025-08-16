@@ -1,25 +1,40 @@
+import { db } from '../db';
+import { videosTable, translationJobsTable } from '../db/schema';
 import { type CreateTranslationJobInput, type TranslationJob } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function createTranslationJob(input: CreateTranslationJobInput): Promise<TranslationJob> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new translation job for a video.
-    // It should:
+export const createTranslationJob = async (input: CreateTranslationJobInput): Promise<TranslationJob> => {
+  try {
     // 1. Validate that the video exists and is uploaded
+    const existingVideo = await db.select()
+      .from(videosTable)
+      .where(eq(videosTable.id, input.video_id))
+      .execute();
+
+    if (existingVideo.length === 0) {
+      throw new Error(`Video with ID ${input.video_id} not found`);
+    }
+
+    const video = existingVideo[0];
+    if (video.upload_status !== 'uploaded') {
+      throw new Error(`Video must be uploaded before creating translation job. Current status: ${video.upload_status}`);
+    }
+
     // 2. Create a new translation job record with 'pending' status
-    // 3. Potentially trigger the translation process (audio extraction, translation API calls)
-    // 4. Return the created translation job record
-    
-    return Promise.resolve({
-        id: 1,
+    const result = await db.insert(translationJobsTable)
+      .values({
         video_id: input.video_id,
         source_language: input.source_language,
         target_language: input.target_language,
-        status: 'pending',
-        original_audio_path: null,
-        translated_text: null,
-        error_message: null,
-        started_at: null,
-        completed_at: null,
-        created_at: new Date()
-    } as TranslationJob);
-}
+        status: 'pending'
+        // Other fields (original_audio_path, translated_text, etc.) will default to null
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Translation job creation failed:', error);
+    throw error;
+  }
+};

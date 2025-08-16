@@ -1,12 +1,23 @@
+import { db } from '../db';
+import { finalOutputsTable } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { type FinalOutput } from '../schema';
 
 export async function getFinalOutputByVideoId(videoId: number): Promise<FinalOutput | null> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching a final output by the original video ID.
-    // It should:
-    // 1. Query the database for final output record by video_id
-    // 2. Return the final output record if found, null otherwise
-    // 3. Potentially include related data (video, translation job, audio generation job)
-    
-    return Promise.resolve(null);
+  try {
+    const results = await db.select()
+      .from(finalOutputsTable)
+      .where(eq(finalOutputsTable.video_id, videoId))
+      .execute();
+
+    if (results.length === 0) {
+      return null;
+    }
+
+    // Return the first result (there should only be one final output per video)
+    return results[0];
+  } catch (error) {
+    console.error('Failed to get final output by video ID:', error);
+    throw error;
+  }
 }

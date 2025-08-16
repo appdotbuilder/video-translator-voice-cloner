@@ -1,24 +1,33 @@
+import { db } from '../db';
+import { videosTable } from '../db/schema';
 import { type CreateVideoInput, type Video } from '../schema';
 
-export async function createVideo(input: CreateVideoInput): Promise<Video> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new video record when a user uploads a video file.
-    // It should:
-    // 1. Validate the input data
-    // 2. Insert the video record into the database with 'pending' upload status
-    // 3. Return the created video record
-    // 4. Potentially trigger video processing/analysis (duration, format validation)
-    
-    return Promise.resolve({
-        id: 1,
+export const createVideo = async (input: CreateVideoInput): Promise<Video> => {
+  try {
+    // Insert video record with pending status
+    const result = await db.insert(videosTable)
+      .values({
         filename: input.filename,
         original_filename: input.original_filename,
         file_path: input.file_path,
         file_size: input.file_size,
-        duration: input.duration,
+        duration: input.duration, // Can be null until processing is complete
         format: input.format,
-        upload_status: 'pending',
-        uploaded_at: new Date(),
-        created_at: new Date()
-    } as Video);
-}
+        upload_status: 'pending' // Default status for new uploads
+      })
+      .returning()
+      .execute();
+
+    // Return the created video record
+    const video = result[0];
+    return {
+      ...video,
+      // Ensure proper date types are returned
+      uploaded_at: video.uploaded_at,
+      created_at: video.created_at
+    };
+  } catch (error) {
+    console.error('Video creation failed:', error);
+    throw error;
+  }
+};

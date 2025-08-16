@@ -1,26 +1,53 @@
+import { db } from '../db';
+import { translationJobsTable } from '../db/schema';
 import { type UpdateTranslationJobInput, type TranslationJob } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function updateTranslationJob(input: UpdateTranslationJobInput): Promise<TranslationJob> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating a translation job's status and results.
-    // It should:
-    // 1. Find the translation job by ID
-    // 2. Update the provided fields (status, audio path, translated text, timestamps, errors)
-    // 3. Return the updated translation job record
-    // 4. Handle cases where job is not found
-    // 5. Potentially trigger next steps (audio generation) when translation completes
+  try {
+    // Build the update object with only the fields that were provided
+    const updateData: Partial<typeof translationJobsTable.$inferInsert> = {};
     
-    return Promise.resolve({
-        id: input.id,
-        video_id: 1,
-        source_language: 'en',
-        target_language: 'es',
-        status: input.status || 'pending',
-        original_audio_path: input.original_audio_path || null,
-        translated_text: input.translated_text || null,
-        error_message: input.error_message || null,
-        started_at: input.started_at || null,
-        completed_at: input.completed_at || null,
-        created_at: new Date()
-    } as TranslationJob);
+    if (input.status !== undefined) {
+      updateData.status = input.status;
+    }
+    
+    if (input.original_audio_path !== undefined) {
+      updateData.original_audio_path = input.original_audio_path;
+    }
+    
+    if (input.translated_text !== undefined) {
+      updateData.translated_text = input.translated_text;
+    }
+    
+    if (input.error_message !== undefined) {
+      updateData.error_message = input.error_message;
+    }
+    
+    if (input.started_at !== undefined) {
+      updateData.started_at = input.started_at;
+    }
+    
+    if (input.completed_at !== undefined) {
+      updateData.completed_at = input.completed_at;
+    }
+
+    // Update the translation job record
+    const result = await db.update(translationJobsTable)
+      .set(updateData)
+      .where(eq(translationJobsTable.id, input.id))
+      .returning()
+      .execute();
+
+    // Check if job was found and updated
+    if (result.length === 0) {
+      throw new Error(`Translation job with id ${input.id} not found`);
+    }
+
+    // Return the updated translation job
+    return result[0];
+  } catch (error) {
+    console.error('Translation job update failed:', error);
+    throw error;
+  }
 }
